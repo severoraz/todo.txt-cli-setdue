@@ -1,0 +1,362 @@
+#!/bin/bash
+# AUTHOR: severoraz@gmail.com
+# LICENSE: CC-BY-SA v3.0
+# DESCRIPTION
+# This is a todo.txt-cli extension to set or change the due date of a set of
+# tasks
+
+# set -x
+# trap read debug
+
+# Set self name
+self=$(basename $1)
+
+# Flags
+safecheck=1
+verbose=1
+
+# Parameter map
+# $0   $1     $2      ${@:3:#}
+# todo setdue DUEDATE ITEM#1 [ITEM#2 ...]
+## where DUEDATE follows one of the following formats:
+
+# Date formats {{{1
+## yyyy-mm-dd   is the standard* date format
+FMT_YYYY_MM_DD="^([[:digit:]]{4,})-([[:digit:]]{2})-([[:digit:]]{2})$"
+## --mm--dd     is the standard* date format in the current year
+FMT__MM_DD="^--([[:digit:]]{2})-([[:digit:]]{2})$"
+## ---dd        is a date format in the current month and year
+FMT___DD="^---([[:digit:]]{2})$"
+## yyyy-Www     is the standard* week reference
+FMT_YYYY_WWW="^([[:digit:]]{4,})-W([[:digit:]]{2})$"
+## --Www        is a week reference in the current year
+FMT__WWW="^--W([[:digit:]]{2})$"
+## yyyy-Www-D   is the standard* week reference with ordinal week day
+FMT_YYYY_WWW_D="^([[:digit:]]{4,})-W([[:digit:]]{2})-([[:digit:]])"
+## --Www-D      is a week reference with ordinal week day in the current year
+FMT__WWW_D="^--W([[:digit:]]{2})-([[:digit:]])"
+## yyyy-ddd     is the standard* ordinal date
+FMT_YYYY_DDD="^([[:digit:]]{4,})-([[:digit:]]{3})"
+## --ddd        is an ordinal date reference in the current year
+FMT__DDD="^--([[:digit:]]{3})$"
+## -ddd         stands for ddd days ago
+FMT_MDDD="^-([[:digit:]]+)$"
+## +ddd         stands for ddd days starting now
+FMT_PDDD="^\+([[:digit:]]+)$"
+## nw           stands for next week (this weekday in next week)
+## xxx          (where xxx are the first three letters in a weekday name) is a
+##              reference to the next such weekday
+## * according to ISO 8601
+## and ITEM#... correspond to task IDs
+# EOB Date formats 1}}}
+
+# Functions {{{1
+
+function add_days {
+    # Format Y{4,}-MM-DD
+    [[ $1 =~ $FMT_YYYY_MM_DD ]];
+    y=${BASH_REMATCH[1]}
+    m=${BASH_REMATCH[2]}
+    d=${BASH_REMATCH[3]}
+    x=$2
+    # transfer days from x to date
+    while [[ $x -gt $( yearlen $y ) ]]; do
+        (( x= $x - $( yearlen $y ) ))
+        (( y= $y + 1 ))
+    done
+    while (( $x+$d > $( monthlen $m $y ) )); do
+        (( x= $x - $( monthlen $m $y ) ))
+        (( m= $m + 1 ))
+        if [[ $m -eq 13 ]]; then
+            (( y= $y + 1 ))
+            m=1
+        fi
+    done
+    (( d= $d + $x ))
+    printf "%04d-%02d-%02d\n" $y $m $d
+}
+
+function has_dd {
+    re="[ ^]?due:"
+    # quoted patterns don't work
+    # unquoted patterns with spaces don't work
+    # i. e.: to use spaces in a regex pattern, a variable-based regex must be used
+    # this is thanks to a change between bash 3.1 and bash 3.2
+    if [[ $1 =~ $re ]]; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
+function year_is_leap {
+# from Wikipedia:
+# if (year is not divisible by 4) then (it is a common year)
+# else if (year is not divisible by 100) then (it is a leap year)
+# else if (year is not divisible by 400) then (it is a common year)
+# else (it is a leap year)
+# ----
+# if year is divisible by 4 and
+# - not divisible by 100
+# - divisible by 400
+    # $1: year (yyyy)
+    if (( $1 % 4 == 0 )) && (( $1 % 100 != 0 )) || (( $1 % 400 == 0 )); then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
+function yearlen {
+    # echo $1
+    # echo $( year_is_leap $1 )
+    (( len= 365 + $( year_is_leap $1 )  ))
+    echo $len
+}
+
+function get_ymd_from_yd {
+    echo not ready
+}
+
+function get_md_from_wwwd {
+    #yyyymmdd
+    echo not ready
+}
+
+function get_md_from_yod {
+    year=$1
+    date=$2
+    month=1
+    while [[ $date -gt $( monthlen $month $year ) ]] && [[ $month -le 12 ]]; do
+        (( date= $date - $( monthlen $month $year ) ))
+        let month=month+1
+    done
+    echo $month $date
+}
+
+
+function monthlen {
+    month=$( printf "%d\n" $1 )
+    case $month in
+        2) # February: may be leap year!
+            if   [ $( year_is_leap $2 ) -eq 1 ]; then
+                echo 29
+            elif [ $( year_is_leap $2 ) -eq 0 ]; then
+                echo 28
+            fi
+            ;;
+        1|3|5|7|8|10|12) # 31 day months
+            echo 31
+            ;;
+        4|6|9|11) # 30 day months
+            echo 30
+            ;;
+        *)
+            echo 0
+            ;;
+    esac
+}
+
+function get_first_weekday {
+    # $1 : year
+    # empirically calculated comparing with LibreOffice Calc's output and
+    # the definition of leap years (every four years except if year is
+    # divisible by 100 and not by 400)
+    echo $(( ($1 + ($1-1)/4 - ($1-1)/100 + ($1-1)/400 + 6) % 7 + 1 ))
+}
+
+# EOB Functions 1}}}
+
+# Main block {{{1
+usagestr="usage: $TODO_SH $self DUEDATE ITEM#+
+parameter conditions: 
+ * DUEDATE must be in a supported date format
+ * ITEM# must be an integer"
+ # TODO: add a list of the valid formats
+
+case $2 in
+"usage")
+    echo "$usagestr" && exit
+    ;;
+*)
+    # Open up your heart and just let it begin
+
+    # # set defaults
+    srcfile="$TODO_FILE" # TODO: maybe there could be a way to edit other files
+    today=$(date +%Y-%m-%d)
+    [[ $today =~ $FMT_YYYY_MM_DD ]]
+    year=${BASH_REMATCH[1]}
+    month=${BASH_REMATCH[2]}
+    date=${BASH_REMATCH[3]}
+    # weekday=5
+    # # read date
+    # ## numerical dates
+    if   [[ $2 =~ $FMT_YYYY_MM_DD ]]; then
+        year=${BASH_REMATCH[1]}
+        month=${BASH_REMATCH[2]}
+        date=${BASH_REMATCH[3]}
+        # echo FMT_YYYY_MM_DD
+    elif [[ $2 =~ $FMT__MM_DD ]]; then
+        # year stays default
+        month=${BASH_REMATCH[1]}
+        date=${BASH_REMATCH[2]}
+        # echo FMT__MM_DD
+    elif [[ $2 =~ $FMT___DD ]]; then
+        # year stays default
+        # month stays default
+        date=${BASH_REMATCH[1]}
+        # echo FMT___DD
+    elif [[ $2 =~ $FMT_YYYY_DDD ]]; then
+        year=${BASH_REMATCH[1]}
+        odate=$((10#${BASH_REMATCH[2]}))
+        [[ $( get_md_from_yod $year $odate ) =~ ([[:digit:]]+)" "([[:digit:]]+) ]]
+        month=${BASH_REMATCH[1]}
+        date=${BASH_REMATCH[2]}
+        # echo FMT_YYYY_DDD
+    elif [[ $2 =~ $FMT__DDD ]]; then
+        # year stays default
+        odate=$((10#${BASH_REMATCH[1]}))
+        [[ $( get_md_from_yod $year $odate ) =~ ([[:digit:]]+)" "([[:digit:]]+) ]]
+        month=${BASH_REMATCH[1]}
+        date=${BASH_REMATCH[2]}
+        # echo FMT__DDD
+    elif [[ $2 =~ $FMT_YYYY_WWW ]]; then
+        year=${BASH_REMATCH[1]}
+        week=${BASH_REMATCH[2]}
+        echo $year $week
+        # TODO: let user select which weekday is the default
+        let odate=$week*7-2
+        [[ $( get_md_from_yod $year $odate ) =~ ([[:digit:]]+)" "([[:digit:]]+) ]]
+        month=${BASH_REMATCH[1]}
+        date=${BASH_REMATCH[2]}
+        echo FMT_YYYY_WWW
+    elif [[ $2 =~ $FMT__WWW ]]; then
+        # year stays default
+        week=${BASH_REMATCH[1]}
+        echo $year $week
+        let odate=$week*7-2
+        [[ $( get_md_from_yod $year $odate ) =~ ([[:digit:]]+)" "([[:digit:]]+) ]]
+        month=${BASH_REMATCH[1]}
+        date=${BASH_REMATCH[2]}
+        echo FMT__WWW
+    elif [[ $2 =~ $FMT_YYYY_WWW_D ]]; then
+        year=${BASH_REMATCH[1]}
+        week=${BASH_REMATCH[2]}
+        weekday=${BASH_REMATCH[3]}
+        echo $year $week
+        weekday1=$( get_first_weekday $year )
+        if [[ $weekday -lt $weekday1 ]]; then
+            echo weekday invalid, first weekday in $year-W$week is $weekday1
+        fi
+        if [[ $(($weekday-$weekday1)) -gt 6 ]]; then
+            echo weekday is invalid, last weekday in $year-W$week is $weekday1
+        fi
+        (( odate=$(($week-1))*7+$weekday ))
+        # TODO: algorithm is wrong, doesn't account for week offsets
+        # weeks start on mondays always
+        [[ $( get_md_from_yod $year $odate ) =~ ([[:digit:]]+)" "([[:digit:]]+) ]]
+        month=${BASH_REMATCH[1]}
+        date=${BASH_REMATCH[2]}
+        echo FMT_YYYY_WWW_D
+    elif [[ $2 =~ $FMT__WWW_D ]]; then
+        # year stays default
+        week=${BASH_REMATCH[1]}
+        weekday=${BASH_REMATCH[2]}
+        echo FMT__WWW_D
+    ## diferential dates
+    elif [[ $2 =~ $FMT_MDDD ]]; then
+        (( diff= 0 - ${BASH_REMATCH[1]} ))
+        [[ $( add_days $today $diff ) =~ $FMT_YYYY_MM_DD ]]
+        year=${BASH_REMATCH[1]}
+        month=${BASH_REMATCH[2]}
+        date=${BASH_REMATCH[3]}
+        # echo FMT_MDDD
+    elif [[ $2 =~ $FMT_PDDD ]]; then
+        diff=${BASH_REMATCH[1]}
+        [[ $( add_days $today $diff ) =~ $FMT_YYYY_MM_DD ]]
+        year=${BASH_REMATCH[1]}
+        month=${BASH_REMATCH[2]}
+        date=${BASH_REMATCH[3]}
+        # echo FMT_PDDD
+
+    ## nominal dates
+    ## catch malformed date parameter
+    else
+        # the date entered does not match any of the allowed formats
+        echo "$usagestr" && exit
+    fi
+    # check date validity
+    ## month
+    if [[ $month -gt 12 ]]; then
+        echo month invalid
+    fi
+    ## month-date
+    mlen=$( monthlen $month $year )
+    if [[ $date -gt $( monthlen $month $year ) ]]; then
+        echo month-date combination invalid
+        echo year $year month $month date $date
+        echo monlength $( monthlen $month $year )
+    fi
+
+    # printf "%d-%02d-%02d\n" $year $month $date
+    ddate=$( printf "%04d-%02d-%02d" $year $month $date )
+
+    # edit dates in
+    tstr=""
+    for ii in ${@:3}; do
+        # get todo line
+        origstr=$( sed -n ${ii}p $srcfile )
+        repstr="$origstr"
+        # if has due date, change due date
+        if [[ $( has_dd "$origstr" ) -eq 1 ]]; then
+            # echo has due date, replace due date
+            # tstr="${tstr/due:[^ ]\+/due:$ddate}"
+            repstr=$( echo $origstr | sed -E "s/([ ^]?due:)[^ ]*/\1$ddate/g" )
+            # TODO: try to find a pure bash alternative to this
+        # otherwise, add due date at the end
+        # (its more simple now that creation dates or crossed status or priorities don't have to be
+        # checked
+        else
+            # or maybe add it on the front, who knows what's best. I like it on the front
+            repstr="$origstr due:$ddate"
+            # sed -i "${ln}s/$/<ddatestr>/" $srcfile
+        fi
+
+        # (optional) Prompt user to accept changes
+        choice=""
+        if [ $safecheck == 1 ]; then
+            # Ask for choice
+            echo "$self: Do you wish to replace this line:"
+            echo -e "\t$origstr"
+            echo "with this line?"
+            echo -e "\t$repstr"
+            echo -n "Y/n: "
+            # Read choice
+            read choice;
+        fi
+        # Interpret choice
+        # If choice is not empty or "n" or "N", exit without applying changes
+        if [ ! -z "${choice}" ] && [ "${choice,,}" == "n" ]; then
+            # Notify that changes were aborted
+            if [ $safecheck == 1 ] || [ $verbose == 1 ]; then
+                echo "$self: Changes aborted."
+            fi
+            # Skip modifying the file
+        # Otherwise, assume changes are to be applied, and apply them
+        else
+            # Replace original line with contents from tmpfile
+            # sed -in "${ln}s/$origstr/$repstr/g" $srcfile
+            sed -i "${ii}c$repstr" $srcfile
+
+            # Notify that changes were applied
+            if [ $safecheck == 1 ] || [ $verbose == 1 ]; then
+                echo "$self: Changes applied."
+            fi
+        fi 
+    done
+
+    # save changes
+    ;;
+esac
+# EOB Mainblock 1}}}
+
