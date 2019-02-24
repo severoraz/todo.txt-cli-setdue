@@ -5,11 +5,11 @@ Listed in the [todo.txt-cli addon directory][1].
 
 ## Usage:
 
-    todo tedit DUEDATE ITEM# ...
+    todo setdue DUEDATE ITEM# ...
 
 ## Parameter conditions: 
  * DUEDATE must be a supported date format
- * ITEM# must be an integer
+ * ITEM# must be an integer, several items can be specified separated by spaces
 
 ### Supported date formats
  * `yyyy-mm-dd`   is the standard* date format
