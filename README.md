@@ -24,10 +24,10 @@ Listed in the [todo.txt-cli addon directory][1].
 | `--Www-D`    | is a week reference with ordinal week day in the current year |
 | `yyyy-ddd`   | is the standard\* ordinal date                                |
 | `--ddd`      | is an ordinal date reference in the current year              |
-| `-ddd`       | stands for ddd days ago                                       |
-| `+ddd`       | stands for ddd days starting now                              |
+| `-ddd`       | stands for `ddd` days ago                                     |
+| `+ddd`       | stands for `ddd` days starting now                            |
 | `nw`         | stands for next week (this weekday in next week)              |
-| `xxx`        | (where xxx are the first three letters in a weekday name) is a reference to the next such weekday |
+| `xxx`        | (where `xxx` are the first three letters in a weekday name) is a reference to the next such weekday |
 
 \* according to ISO 8601
 
