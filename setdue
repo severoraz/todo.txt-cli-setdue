@@ -54,26 +54,22 @@ FMT_PDDD="^\+([[:digit:]]+)$"
 
 function add_days {
     # Format Y{4,}-MM-DD
-    [[ $1 =~ $FMT_YYYY_MM_DD ]];
-    y=${BASH_REMATCH[1]}
-    m=${BASH_REMATCH[2]}
-    d=${BASH_REMATCH[3]}
+    # [[ $1 =~ $FMT_YYYY_MM_DD ]];
+    # y=${BASH_REMATCH[1]}
+    # m=${BASH_REMATCH[2]}
+    # d=${BASH_REMATCH[3]}
     x=$2
-    # transfer days from x to date
-    while [[ $x -gt $( yearlen $y ) ]]; do
-        (( x= $x - $( yearlen $y ) ))
-        (( y= $y + 1 ))
-    done
-    while (( $x+$d > $( monthlen $m $y ) )); do
-        (( x= $x - $( monthlen $m $y ) ))
-        (( m= $m + 1 ))
-        if [[ $m -eq 13 ]]; then
-            (( y= $y + 1 ))
-            m=1
-        fi
-    done
-    (( d= $d + $x ))
-    printf "%04d-%02d-%02d\n" $y $m $d
+
+    # check sign of x
+    if [[ $x -lt 0 ]]; then
+        xsgn="-"
+        xabs=${x#-}
+    elif [[ $x -ge 0 ]]; then
+        xsgn="+"
+        xabs=$x
+    fi
+
+    echo $(date -d "$1 $xsgn $xabs days" +"%Y-%m-%d")
 }
 
 function has_dd {
@@ -157,6 +153,8 @@ function monthlen {
     esac
 }
 
+# get_first_weekday - gets the ordinal of the first weekday of the given year
+# (1: monday, 7: sunday)
 function get_first_weekday {
     # $1 : year
     # empirically calculated comparing with LibreOffice Calc's output and
@@ -222,7 +220,7 @@ case $2 in
                 ;;
         esac
         # if b is defined, a weekday was given
-        if [ -n $b ]; then
+        if [[ -n $b ]]; then
             a=$(date +%u) # current weekday ordinal (1:monday, 7:sunday)
             inputdate=$(echo +$((b-a))) # convert into differential duedate
         fi
@@ -280,7 +278,7 @@ case $2 in
         year=${BASH_REMATCH[1]}
         week=${BASH_REMATCH[2]}
         weekday=${BASH_REMATCH[3]}
-        echo $year $week
+        # echo $year $week
         weekday1=$( get_first_weekday $year )
         if [[ $weekday -lt $weekday1 ]]; then
             echo weekday invalid, first weekday in $year-W$week is $weekday1
@@ -288,9 +286,12 @@ case $2 in
         if [[ $(($weekday-$weekday1)) -gt 6 ]]; then
             echo weekday is invalid, last weekday in $year-W$week is $weekday1
         fi
-        (( odate=$(($week-1))*7+$weekday ))
+
+        odate=$(( 0 - $weekday1 + ($week-1)*7 + $weekday ))
         # TODO: algorithm is wrong, doesn't account for week offsets
         # weeks start on mondays always
+        echo odate is $odate
+        echo add_days gives $(add_days $(echo $year-01-01) $odate)
         [[ $( get_md_from_yod $year $odate ) =~ ([[:digit:]]+)" "([[:digit:]]+) ]]
         month=${BASH_REMATCH[1]}
         date=${BASH_REMATCH[2]}
