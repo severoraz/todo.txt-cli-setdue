@@ -1,0 +1,3 @@
+create algorithm to find first weekday of the year
+implement W duedates
+improve code comments
