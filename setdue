@@ -190,37 +190,74 @@ case $2 in
     date=${BASH_REMATCH[3]}
     # weekday=5
     # # read date
+    inputdate="$2"
+    # ## literal dates (aliases for diferential dates)
+    if [[ $inputdate = "nw" ]]; then
+        inputdate="+7"
+    elif [[ $inputdate = "today" ]]; then 
+        inputdate="+0"
+    else
+        lower=$(echo $inputdate | tr '[:upper:]' '[:lower:]')
+        case $lower in
+            "mon")
+                b=8
+                ;;
+            "tue")
+                b=9
+                ;;
+            "wed")
+                b=10
+                ;;
+            "thu")
+                b=11
+                ;;
+            "fri")
+                b=12
+                ;;
+            "sat")
+                b=13
+                ;;
+            "sun")
+                b=14
+                ;;
+        esac
+        # if b is defined, a weekday was given
+        if [ -n $b ]; then
+            a=$(date +%u) # current weekday ordinal (1:monday, 7:sunday)
+            inputdate=$(echo +$((b-a))) # convert into differential duedate
+        fi
+    fi
     # ## numerical dates
-    if   [[ $2 =~ $FMT_YYYY_MM_DD ]]; then
+    if   [[ $inputdate =~ $FMT_YYYY_MM_DD ]]; then
         year=${BASH_REMATCH[1]}
         month=${BASH_REMATCH[2]}
         date=${BASH_REMATCH[3]}
         # echo FMT_YYYY_MM_DD
-    elif [[ $2 =~ $FMT__MM_DD ]]; then
+    elif [[ $inputdate =~ $FMT__MM_DD ]]; then
         # year stays default
         month=${BASH_REMATCH[1]}
         date=${BASH_REMATCH[2]}
         # echo FMT__MM_DD
-    elif [[ $2 =~ $FMT___DD ]]; then
+    elif [[ $inputdate =~ $FMT___DD ]]; then
         # year stays default
         # month stays default
         date=${BASH_REMATCH[1]}
         # echo FMT___DD
-    elif [[ $2 =~ $FMT_YYYY_DDD ]]; then
+    elif [[ $inputdate =~ $FMT_YYYY_DDD ]]; then
         year=${BASH_REMATCH[1]}
         odate=$((10#${BASH_REMATCH[2]}))
         [[ $( get_md_from_yod $year $odate ) =~ ([[:digit:]]+)" "([[:digit:]]+) ]]
         month=${BASH_REMATCH[1]}
         date=${BASH_REMATCH[2]}
         # echo FMT_YYYY_DDD
-    elif [[ $2 =~ $FMT__DDD ]]; then
+    elif [[ $inputdate =~ $FMT__DDD ]]; then
         # year stays default
         odate=$((10#${BASH_REMATCH[1]}))
         [[ $( get_md_from_yod $year $odate ) =~ ([[:digit:]]+)" "([[:digit:]]+) ]]
         month=${BASH_REMATCH[1]}
         date=${BASH_REMATCH[2]}
         # echo FMT__DDD
-    elif [[ $2 =~ $FMT_YYYY_WWW ]]; then
+    elif [[ $inputdate =~ $FMT_YYYY_WWW ]]; then # TODO: add first-weekday-of-the-year algorithm
         year=${BASH_REMATCH[1]}
         week=${BASH_REMATCH[2]}
         echo $year $week
@@ -230,7 +267,7 @@ case $2 in
         month=${BASH_REMATCH[1]}
         date=${BASH_REMATCH[2]}
         echo FMT_YYYY_WWW
-    elif [[ $2 =~ $FMT__WWW ]]; then
+    elif [[ $inputdate =~ $FMT__WWW ]]; then # TODO: add first-weekday-of-the-year algorithm
         # year stays default
         week=${BASH_REMATCH[1]}
         echo $year $week
@@ -239,7 +276,7 @@ case $2 in
         month=${BASH_REMATCH[1]}
         date=${BASH_REMATCH[2]}
         echo FMT__WWW
-    elif [[ $2 =~ $FMT_YYYY_WWW_D ]]; then
+    elif [[ $inputdate =~ $FMT_YYYY_WWW_D ]]; then # TODO: add first-weekday-of-the-year algorithm
         year=${BASH_REMATCH[1]}
         week=${BASH_REMATCH[2]}
         weekday=${BASH_REMATCH[3]}
@@ -258,20 +295,20 @@ case $2 in
         month=${BASH_REMATCH[1]}
         date=${BASH_REMATCH[2]}
         echo FMT_YYYY_WWW_D
-    elif [[ $2 =~ $FMT__WWW_D ]]; then
+    elif [[ $inputdate =~ $FMT__WWW_D ]]; then # TODO: add first-weekday-of-the-year algorithm
         # year stays default
         week=${BASH_REMATCH[1]}
         weekday=${BASH_REMATCH[2]}
         echo FMT__WWW_D
     ## diferential dates
-    elif [[ $2 =~ $FMT_MDDD ]]; then
+    elif [[ $inputdate =~ $FMT_MDDD ]]; then
         (( diff= 0 - ${BASH_REMATCH[1]} ))
         [[ $( add_days $today $diff ) =~ $FMT_YYYY_MM_DD ]]
         year=${BASH_REMATCH[1]}
         month=${BASH_REMATCH[2]}
         date=${BASH_REMATCH[3]}
         # echo FMT_MDDD
-    elif [[ $2 =~ $FMT_PDDD ]]; then
+    elif [[ $inputdate =~ $FMT_PDDD ]]; then
         diff=${BASH_REMATCH[1]}
         [[ $( add_days $today $diff ) =~ $FMT_YYYY_MM_DD ]]
         year=${BASH_REMATCH[1]}

@@ -26,6 +26,7 @@ Listed in the [todo.txt-cli addon directory][1].
 | `--ddd`      | is an ordinal date reference in the current year              |
 | `-ddd`       | stands for `ddd` days ago                                     |
 | `+ddd`       | stands for `ddd` days starting now                            |
+| `today`      | sets due to today                                             |
 | `nw`         | stands for next week (this weekday in next week)              |
 | `xxx`        | (where `xxx` are the first three letters in a weekday name) is a reference to the next such weekday |
 
