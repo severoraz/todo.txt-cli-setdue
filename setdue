@@ -9,7 +9,7 @@
 # trap read debug
 
 # Set self name
-self=$(basename $1)
+self="setdue"
 
 # Flags
 safecheck=1
@@ -153,14 +153,26 @@ function monthlen {
     esac
 }
 
-# get_first_weekday - gets the ordinal of the first weekday of the given year
-# (1: monday, 7: sunday)
-function get_first_weekday {
+# get_firstday_weekday - gets the weekday ordinal of the first day of the year, of
+# the given year (1: monday, 7: sunday)
+function get_firstday_weekday {
     # $1 : year
     # empirically calculated comparing with LibreOffice Calc's output and
     # the definition of leap years (every four years except if year is
     # divisible by 100 and not by 400)
     echo $(( ($1 + ($1-1)/4 - ($1-1)/100 + ($1-1)/400 + 6) % 7 + 1 ))
+}
+
+# get_first_monday - calculates the date of the first monday of the year (W01-1)
+function get_first_monday {
+    # get first week
+    weekday1=$(get_firstday_weekday $1)
+    # if weekday1 <= 4, first week day is this week
+    monday=$(add_days 2019-01-01 $((0-$weekday1)) )
+    # if weekday1 > 4, first week is next week
+    monday=$(add_days 2019-01-01 $((7-$weekday1)) )
+    # 
+    # get first weekday
 }
 
 # EOB Functions 1}}}
@@ -279,7 +291,7 @@ case $2 in
         week=${BASH_REMATCH[2]}
         weekday=${BASH_REMATCH[3]}
         # echo $year $week
-        weekday1=$( get_first_weekday $year )
+            weekday1=$( get_firstday_weekday $year )
         if [[ $weekday -lt $weekday1 ]]; then
             echo weekday invalid, first weekday in $year-W$week is $weekday1
         fi
