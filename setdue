@@ -12,8 +12,18 @@
 self="setdue"
 
 # Flags
-safecheck=1
-verbose=1
+if [[ -z $TODOTXT_SETDUE_SAFECHECK ]]; then
+    TODOTXT_SETDUE_SAFECHECK="1"
+    # echo "TODOTXT_SETDUE_SAFECHECK set to $TODOTXT_SETDUE_SAFECHECK"
+# else
+#     echo "TODOTXT_SETDUE_SAFECHECK set to $TODOTXT_SETDUE_SAFECHECK"
+fi
+if [[ -z $TODOTXT_SETDUE_VERBOSE ]]; then
+    TODOTXT_SETDUE_VERBOSE="0"
+#     echo "TODOTXT_SETDUE_VERBOSE set to $TODOTXT_SETDUE_VERBOSE"
+# else
+#     echo "TODOTXT_SETDUE_VERBOSE set to $TODOTXT_SETDUE_VERBOSE"
+fi
 
 # Parameter map
 # $0   $1     $2      ${@:3:#}
@@ -374,7 +384,7 @@ case $2 in
 
         # (optional) Prompt user to accept changes
         choice=""
-        if [ $safecheck == 1 ]; then
+        if [ $TODOTXT_SETDUE_SAFECHECK == "1" ]; then
             # Ask for choice
             echo "$self: Do you wish to replace this line:"
             echo -e "\t$origstr"
@@ -386,9 +396,11 @@ case $2 in
         fi
         # Interpret choice
         # If choice is not empty or "n" or "N", exit without applying changes
-        if [ ! -z "${choice}" ] && [ "${choice,,}" == "n" ]; then
+        # Changed second instance of ${choice} from ${choice,,} to solve bug
+        # #2, awaiting confirmation of solution
+        if [ ! -z "${choice}" ] && [ "${choice}" == "n" ]; then
             # Notify that changes were aborted
-            if [ $safecheck == 1 ] || [ $verbose == 1 ]; then
+            if [ $TODOTXT_SETDUE_SAFECHECK == "1" ] || [ $TODOTXT_SETDUE_VERBOSE == "1" ]; then
                 echo "$self: Changes aborted."
             fi
             # Skip modifying the file
@@ -396,10 +408,16 @@ case $2 in
         else
             # Replace original line with contents from tmpfile
             # sed -in "${ln}s/$origstr/$repstr/g" $srcfile
-            sed -i "${ii}c$repstr" $srcfile
+
+            # WARNING: the following two lines do virtually an in-place
+            # editting of the file. It is done without the -i flag of sed
+            # because it is not equivalently interpreted by BSD sed, which may
+            # be present in some computers
+            sed "${ii}c$repstr" $srcfile > "$srcfile.setdue"
+            mv "$srcfile.setdue" $srcfile
 
             # Notify that changes were applied
-            if [ $safecheck == 1 ] || [ $verbose == 1 ]; then
+            if [ $TODOTXT_SETDUE_SAFECHECK == "1" ] || [ $TODOTXT_SETDUE_VERBOSE == "1" ]; then
                 echo "$self: Changes applied."
             fi
         fi 

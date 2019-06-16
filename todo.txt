@@ -1,4 +1,5 @@
 x create algorithm to find first weekday of the year
 create algorithm to determine when does the first weekday of the year start (case: 2017-01-01 was a sunday, KW01 started on the next monday)
+    first weekday of the year, according to ISO 8601 is the week with the first thursday of the year
 implement W duedates
 improve code comments
