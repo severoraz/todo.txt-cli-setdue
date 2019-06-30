@@ -413,7 +413,7 @@ case $2 in
             # editting of the file. It is done without the -i flag of sed
             # because it is not equivalently interpreted by BSD sed, which may
             # be present in some computers
-            sed "${ii}c$repstr" $srcfile > "$srcfile.setdue"
+            sed "${ii}c\\$repstr" $srcfile > "$srcfile.setdue"
             mv "$srcfile.setdue" $srcfile
 
             # Notify that changes were applied
