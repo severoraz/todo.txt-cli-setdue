@@ -345,7 +345,20 @@ case $2 in
         # the date entered does not match any of the allowed formats
         echo "$usagestr" && exit
     fi
+
+    # convert date strings to numbers
+    year=$(( 10#$year ))
+    month=$(( 10#$month ))
+    date=$(( 10#$date ))
+
     # check date validity
+    # Here a state machine should be considered; if the date is invalid, the
+    # operation should be aborted (or not?)
+
+    ## year
+    if [[ $year -lt 1000 ]]; then
+        echo year invalid
+    fi
     ## month
     if [[ $month -gt 12 ]]; then
         echo month invalid
